@@ -1,604 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Brain MRI — Tumor Classifier</title>
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Overpass+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-
-*, *::before, *::after {
-  margin: 0; padding: 0; box-sizing: border-box;
-}
-
-:root {
-  --bg:        #f2efe9;
-  --surface:   #ebe7df;
-  --ink:       #1e1b16;
-  --ink-2:     #5a5447;
-  --ink-3:     #9e9488;
-  --line:      #d4cfc6;
-  --red:       #b03a2e;
-  --red-bg:    #f5e8e6;
-  --teal:      #1d6a5e;
-  --teal-bg:   #e4f0ee;
-}
-
-html { font-size: 15px; }
-
-body {
-  font-family: 'Crimson Pro', Georgia, serif;
-  background: var(--bg);
-  color: var(--ink);
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-}
-
-.wrap {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 1.75rem 5rem;
-}
-
-/* ── Masthead ── */
-.masthead {
-  padding: 3.5rem 0 2rem;
-  border-bottom: 2px solid var(--ink);
-}
-
-.masthead-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 1rem;
-}
-
-.kicker {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.65rem;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 300;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  font-style: italic;
-}
-
-h1 strong {
-  font-style: normal;
-  font-weight: 600;
-}
-
-.lede {
-  margin-top: 0.75rem;
-  font-size: 1.05rem;
-  font-weight: 300;
-  color: var(--ink-2);
-  line-height: 1.6;
-  max-width: 560px;
-}
-
-/* ── Status ── */
-.status-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 2.5rem;
-}
-
-.pip {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--ink-3);
-  flex-shrink: 0;
-  transition: background 0.4s;
-}
-.pip.ok  { background: var(--teal); }
-.pip.err { background: var(--red); }
-
-.status-text {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--ink-2);
-  letter-spacing: 0.03em;
-}
-
-/* ── Drop zone ── */
-.drop {
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 4rem 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-}
-.drop:hover, .drop.over {
-  background: var(--surface);
-  border-color: var(--ink-3);
-}
-.drop input { display: none; }
-
-.drop-icon {
-  display: block;
-  width: 32px; height: 32px;
-  margin: 0 auto 1.2rem;
-  stroke: var(--ink-3);
-  stroke-width: 1.25;
-  fill: none;
-}
-
-.drop-title {
-  font-size: 1.1rem;
-  font-weight: 400;
-  margin-bottom: 0.3rem;
-}
-
-.drop-hint {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--ink-3);
-  letter-spacing: 0.04em;
-}
-
-/* ── Preview panel ── */
-.panel { display: none; }
-.panel.on { display: block; }
-
-.scan-row {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 2rem;
-  align-items: start;
-  margin-bottom: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--line);
-}
-
-@media (max-width: 500px) {
-  .scan-row { grid-template-columns: 1fr; }
-}
-
-.scan-thumb {
-  width: 140px; height: 140px;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  overflow: hidden;
-  background: #111;
-}
-.scan-thumb img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-  filter: grayscale(15%);
-}
-
-.scan-info { padding-top: 0.2rem; }
-
-.scan-name {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
-  word-break: break-all;
-  margin-bottom: 0.2rem;
-}
-
-.scan-meta {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.65rem;
-  color: var(--ink-3);
-  margin-bottom: 1.25rem;
-  letter-spacing: 0.04em;
-}
-
-.btns { display: flex; gap: 0.6rem; }
-
-button {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.6rem 1.4rem;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-primary {
-  background: var(--ink);
-  color: var(--bg);
-  border-color: var(--ink);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--ink-2);
-  border-color: var(--ink-2);
-}
-.btn-primary:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: transparent;
-  color: var(--ink-2);
-  border-color: var(--line);
-}
-.btn-secondary:hover {
-  border-color: var(--ink-3);
-  color: var(--ink);
-}
-
-/* ── Loader ── */
-.loader { display: none; padding: 2.5rem 0; text-align: center; }
-.loader.on { display: block; }
-
-.spin {
-  width: 22px; height: 22px;
-  border: 1.5px solid var(--line);
-  border-top-color: var(--ink);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-  margin: 0 auto 0.8rem;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.loader-txt {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--ink-3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ── Results ── */
-.results { display: none; }
-.results.on { display: block; }
-
-.result-rule {
-  border: none;
-  border-top: 1px solid var(--line);
-  margin: 0.5rem 0 1.75rem;
-}
-
-.verdict-row {
-  display: flex;
-  align-items: baseline;
-  gap: 1.1rem;
-  margin-bottom: 2rem;
-}
-
-.tag {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.28rem 0.75rem;
-  border-radius: 1px;
-  flex-shrink: 0;
-}
-.tag.tumor   { background: var(--red-bg);  color: var(--red); }
-.tag.healthy { background: var(--teal-bg); color: var(--teal); }
-
-.verdict-label {
-  font-size: 1.8rem;
-  font-weight: 300;
-  font-style: italic;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.bars-head {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 1.1rem;
-}
-
-.bar-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.bar-item {
-  display: grid;
-  grid-template-columns: 130px 1fr 52px;
-  align-items: center;
-  gap: 0.9rem;
-}
-
-.bar-label {
-  font-size: 0.9rem;
-  color: var(--ink-2);
-}
-.bar-label.top { color: var(--ink); font-weight: 600; }
-
-.bar-track {
-  height: 2px;
-  background: var(--line);
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 1px;
-  width: 0%;
-  background: var(--ink-3);
-  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.bar-fill.top { background: var(--ink); }
-
-.bar-pct {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.72rem;
-  text-align: right;
-  color: var(--ink-3);
-}
-.bar-pct.top { color: var(--ink); }
-
-/* ── Footnote ── */
-.footnote {
-  margin-top: 3.5rem;
-  padding-top: 1.2rem;
-  border-top: 1px solid var(--line);
-  font-size: 0.875rem;
-  font-weight: 300;
-  font-style: italic;
-  color: var(--ink-3);
-  line-height: 1.7;
-}
-
-/* ── Footer ── */
-.foot {
-  margin-top: 4rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-.foot span {
-  font-family: 'Overpass Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-3);
-  text-transform: uppercase;
-}
-
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainScan AI | MRI Classifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-<div class="wrap">
-
-  <header class="masthead">
-    <div class="masthead-meta">
-      <span class="kicker">Diagnostic Research Tool</span>
-      <span class="kicker">CNN &middot; CBAM &middot; Multi-scale</span>
-    </div>
-    <h1><strong>Brain MRI</strong><br>Tumor Classification</h1>
-    <p class="lede">Upload a brain MRI scan for automated classification across four categories. Custom architecture trained on 7,000+ images.</p>
-  </header>
-
-  <div class="status-bar">
-    <div class="pip" id="pip"></div>
-    <span class="status-text" id="statusText">Initialising model&hellip;</span>
-  </div>
-
-  <div class="drop" id="drop">
-    <svg class="drop-icon" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16 22V8M16 8l-6 6M16 8l6 6"/>
-      <path d="M4 24h24"/>
-    </svg>
-    <p class="drop-title">Drop MRI image here</p>
-    <p class="drop-hint">or click to browse &mdash; JPG, PNG</p>
-    <input type="file" id="fileInput" accept="image/*">
-  </div>
-
-  <div class="panel" id="panel">
-
-    <div class="scan-row">
-      <div class="scan-thumb">
-        <img id="thumb" alt="MRI scan preview">
+  <div class="app">
+    <header class="nav card">
+      <div class="brand">
+        <span class="logo">Brain Tumor Detector by Soumyadyuti Roy</span>
       </div>
-      <div class="scan-info">
-        <div class="scan-name" id="scanName"></div>
-        <div class="scan-meta" id="scanMeta"></div>
-        <div class="btns">
-          <button class="btn-primary" id="runBtn" disabled>Run analysis</button>
-          <button class="btn-secondary" id="clearBtn">Clear</button>
+      <div class="status">
+        <span id="pip"></span>
+        <span id="statusText">Loading model…</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>MRI Brain Tumor Analysis</h1>
+      <p>Upload a brain MRI scan to detect glioma, meningioma, pituitary tumor, or a healthy brain.</p>
+    </section>
+
+    <main class="grid">
+      <section id="drop" class="card drop">
+        <div class="drop-inner">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Upload MRI Image</p>
+          <span>Drag and drop or click to browse</span>
+          <input type="file" id="fileInput" accept="image/*" hidden />
         </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="loader" id="loader">
-      <div class="spin"></div>
-      <p class="loader-txt">Running inference</p>
-    </div>
+      <section id="panel" class="card panel">
+        <div class="img-wrap">
+          <img id="thumb" alt="MRI scan preview" />
+        </div>
+        <div class="info">
+          <div id="scanName" class="name"></div>
+          <div id="scanMeta" class="meta"></div>
+        </div>
+        <div class="actions">
+          <button id="runBtn" disabled>Analyze Scan</button>
+          <button id="clearBtn" class="ghost">Reset</button>
+        </div>
+      </section>
 
-    <div class="results" id="results">
-      <hr class="result-rule">
-      <div class="verdict-row">
-        <span class="tag" id="tag"></span>
-        <span class="verdict-label" id="verdictLabel"></span>
-      </div>
-      <p class="bars-head">Confidence by class</p>
-      <div class="bar-list" id="barList"></div>
-    </div>
+      <section id="results" class="card results">
+        <div class="results-head">
+          <div id="tag" class="tag"></div>
+          <div id="verdictLabel" class="verdict"></div>
+        </div>
+        <div id="barList" class="bars"></div>
+      </section>
+    </main>
 
+    <div id="loader" class="loader">
+      <div class="spinner"></div>
+      <span>Running inference…</span>
+    </div>
   </div>
 
-  <p class="footnote">
-    For research and educational purposes only. This tool is not a substitute for evaluation
-    by a qualified radiologist or neurologist and should not be used for clinical decision-making.
-  </p>
-
-  <footer class="foot">
-    <span>BrainTumorNet &mdash; ResBlock + CBAM</span>
-    <span>Trained on Masoud Nickparvar&rsquo;s dataset</span>
-  </footer>
-
-</div>
-
-<script>
-  const CLASSES = ['glioma', 'meningioma', 'notumor', 'pituitary'];
-  const LABELS  = { glioma: 'Glioma', meningioma: 'Meningioma', notumor: 'No Tumor', pituitary: 'Pituitary Tumor' };
-  const MEAN    = [0.485, 0.456, 0.406];
-  const STD     = [0.229, 0.224, 0.225];
-  const SZ      = 256;
-
-  let session = null;
-  let file    = null;
-
-  const pip        = document.getElementById('pip');
-  const statusText = document.getElementById('statusText');
-  const drop       = document.getElementById('drop');
-  const fileInput  = document.getElementById('fileInput');
-  const panel      = document.getElementById('panel');
-  const thumb      = document.getElementById('thumb');
-  const scanName   = document.getElementById('scanName');
-  const scanMeta   = document.getElementById('scanMeta');
-  const runBtn     = document.getElementById('runBtn');
-  const clearBtn   = document.getElementById('clearBtn');
-  const loader     = document.getElementById('loader');
-  const results    = document.getElementById('results');
-
-  async function loadModel() {
-    try {
-      session = await ort.InferenceSession.create('./brain_tumor_model.onnx');
-      pip.classList.add('ok');
-      statusText.textContent = 'Model ready';
-      if (file) runBtn.disabled = false;
-    } catch (e) {
-      pip.classList.add('err');
-      statusText.textContent = 'brain_tumor_model.onnx not found — place it in the same folder';
-      console.error(e);
-    }
-  }
-  loadModel();
-
-  drop.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-  drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', e => {
-    e.preventDefault();
-    drop.classList.remove('over');
-    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-  });
-
-  function handleFile(f) {
-    if (!f || !f.type.startsWith('image/')) return;
-    file = f;
-    thumb.src = URL.createObjectURL(f);
-    scanName.textContent = f.name;
-    scanMeta.textContent = (f.size / 1024).toFixed(1) + ' KB';
-    drop.style.display = 'none';
-    panel.classList.add('on');
-    results.classList.remove('on');
-    if (session) runBtn.disabled = false;
-  }
-
-  clearBtn.addEventListener('click', () => {
-    file = null;
-    fileInput.value = '';
-    panel.classList.remove('on');
-    results.classList.remove('on');
-    loader.classList.remove('on');
-    drop.style.display = '';
-  });
-
-  // Preprocessing — 256×256, CHW, ImageNet normalisation
-  function preprocess(img) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = SZ;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, SZ, SZ);
-    const { data } = ctx.getImageData(0, 0, SZ, SZ);
-    const f32 = new Float32Array(3 * SZ * SZ);
-    for (let y = 0; y < SZ; y++)
-      for (let x = 0; x < SZ; x++) {
-        const i = (y * SZ + x) * 4;
-        for (let ch = 0; ch < 3; ch++)
-          f32[ch * SZ * SZ + y * SZ + x] = (data[i + ch] / 255 - MEAN[ch]) / STD[ch];
-      }
-    return new ort.Tensor('float32', f32, [1, 3, SZ, SZ]);
-  }
-
-  function softmax(arr) {
-    const m = Math.max(...arr);
-    const e = arr.map(v => Math.exp(v - m));
-    const s = e.reduce((a, b) => a + b, 0);
-    return e.map(v => v / s);
-  }
-
-  runBtn.addEventListener('click', async () => {
-    if (!session || !file) return;
-    runBtn.disabled = true;
-    results.classList.remove('on');
-    loader.classList.add('on');
-
-    const img = new window.Image();
-    img.src = thumb.src;
-    await new Promise(r => img.onload = r);
-
-    const tensor = preprocess(img);
-    const out    = await session.run({ input: tensor });
-    const probs  = softmax(Array.from(out.output.data));
-    const best   = probs.indexOf(Math.max(...probs));
-
-    loader.classList.remove('on');
-    render(CLASSES[best], probs);
-    runBtn.disabled = false;
-  });
-
-  function render(predClass, probs) {
-    const tagEl   = document.getElementById('tag');
-    const labelEl = document.getElementById('verdictLabel');
-    const listEl  = document.getElementById('barList');
-    const isTumor = predClass !== 'notumor';
-
-    tagEl.className   = 'tag ' + (isTumor ? 'tumor' : 'healthy');
-    tagEl.textContent = isTumor ? 'Tumor detected' : 'No tumor';
-    labelEl.textContent = LABELS[predClass];
-
-    const sorted = CLASSES
-      .map((c, i) => ({ c, p: probs[i] }))
-      .sort((a, b) => b.p - a.p);
-
-    listEl.innerHTML = sorted.map(({ c, p }, i) => `
-      <div class="bar-item">
-        <span class="bar-label ${i === 0 ? 'top' : ''}">${LABELS[c]}</span>
-        <div class="bar-track">
-          <div class="bar-fill ${i === 0 ? 'top' : ''}" data-w="${p * 100}"></div>
-        </div>
-        <span class="bar-pct ${i === 0 ? 'top' : ''}">${(p * 100).toFixed(1)}%</span>
-      </div>
-    `).join('');
-
-    results.classList.add('on');
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      listEl.querySelectorAll('.bar-fill').forEach(el => {
-        el.style.width = el.dataset.w + '%';
-      });
-    }));
-  }
-</script>
+  <script src="script.js"></script>
 </body>
 </html>
