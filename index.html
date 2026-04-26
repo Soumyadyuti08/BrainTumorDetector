@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brain Tumor Classifier</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+<header class="nav card">
+  <span class="logo">Brain Tumor Detector</span>
+  <div class="status">
+    <span id="pip"></span>
+    <span id="statusText">Loading model…</span>
+  </div>
+</header>
+<section class="hero">
+  <h1>MRI Brain Tumor Analysis</h1>
+  <p>Upload a brain MRI scan to detect glioma, meningioma, pituitary tumor, or a healthy brain.</p>
+</section>
+<main class="grid">
+  <section id="drop" class="card drop">
+    <div class="drop-inner">
+      <p>Upload MRI Image</p>
+      <span>Drag & drop or click</span>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+    </div>
+  </section>
+  <section id="panel" class="card panel">
+    <img id="thumb" alt="MRI preview">
+    <div id="scanName" class="name"></div>
+    <div id="scanMeta" class="meta"></div>
+    <div class="actions">
+      <button id="runBtn" disabled>Analyze</button>
+      <button id="clearBtn" class="ghost">Reset</button>
+    </div>
+  </section>
+  <section id="results" class="card results">
+    <div id="tag" class="tag"></div>
+    <div id="verdictLabel" class="verdict"></div>
+    <div id="barList" class="bars"></div>
+  </section>
+</main>
+<div id="loader" class="loader">
+  <span>Running inference…</span>
+</div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
